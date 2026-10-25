@@ -1,0 +1,371 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lucubrate · AI Systems IDE</title>
+    <link rel="icon" type="image/png" href="/static/icon.png">
+    <link rel="shortcut icon" href="/static/icon.png">
+    <link rel="stylesheet" href="/static/css/style.css?v=16">
+    <!-- Local xterm.js (100% offline, zero CDN) -->
+    <link rel="stylesheet" href="/static/css/xterm.css">
+    <script src="/static/js/xterm.js"></script>
+    <!-- Local Monaco Editor Loader -->
+    <script src="/static/js/monaco-loader.js"></script>
+</head>
+<body>
+
+    <!-- 1. Header (Navbar, Classic Menubar & Search Bar) -->
+    <header class="spark-navbar">
+        <div class="nav-left">
+            <div class="brand-title">
+                <img src="/static/icon.png" alt="Lucubrate" style="width: 18px; height: 18px; border-radius: 3px; vertical-align: middle; margin-right: 4px;">
+                <span>LUCUBRATE</span>
+                <span class="brand-badge">IDE</span>
+                <span id="badge-demo-mode" class="brand-badge" style="display: none; background-color: #28a745; cursor: pointer; margin-left: 4px;" onclick="toggleDemoMode()" title="Demo Mode is Active (Click to Exit)">DEMO MODE</span>
+            </div>
+            
+            <!-- Real Desktop Menubar with Dropdowns -->
+            <nav class="spark-menubar">
+                <!-- File Menu -->
+                <div class="menu-dropdown">
+                    <span class="menu-item-trigger">File</span>
+                    <div class="dropdown-menu-panel">
+                        <div class="dropdown-menu-item" onclick="openSettingsModal()">
+                            <span>Settings / Connection...</span>
+                            <span class="menu-shortcut">Ctrl+,</span>
+                        </div>
+                        <div class="dropdown-menu-item" onclick="loadModels()">
+                            <span>Reload Models from Cluster</span>
+                        </div>
+                        <div class="dropdown-menu-item" onclick="inspectGpuDetails()">
+                            <span>Inspect GPU (nvidia-smi)</span>
+                        </div>
+                        <div class="dropdown-menu-divider"></div>
+                        <div class="dropdown-menu-item" onclick="promptOpenDirectory()">
+                            <span>Open Remote Directory...</span>
+                        </div>
+                        <div class="dropdown-menu-item" onclick="startInlineCreation(false)">
+                            <span>New Remote File</span>
+                        </div>
+                        <div class="dropdown-menu-item" onclick="startInlineCreation(true)">
+                            <span>New Remote Folder</span>
+                        </div>
+                        <div class="dropdown-menu-divider"></div>
+                        <div class="dropdown-menu-item" onclick="saveActiveFile()">
+                            <span>Save</span>
+                            <span class="menu-shortcut">Ctrl+S</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Edit Menu -->
+                <div class="menu-dropdown">
+                    <span class="menu-item-trigger">Edit</span>
+                    <div class="dropdown-menu-panel">
+                        <div class="dropdown-menu-item" onclick="formatActiveBuffer()">
+                            <span>Format Document</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- View Menu -->
+                <div class="menu-dropdown">
+                    <span class="menu-item-trigger">View</span>
+                    <div class="dropdown-menu-panel">
+                        <div class="dropdown-menu-item" onclick="toggleTerminalDrawer()">
+                            <span>Toggle Terminal</span>
+                            <span class="menu-shortcut">Ctrl+`</span>
+                        </div>
+                        <div class="dropdown-menu-item" onclick="toggleExplorerPanel()">
+                            <span>Toggle File Explorer</span>
+                        </div>
+                        <div class="dropdown-menu-item" onclick="toggleAgentPanel()">
+                            <span>Toggle Agent Chat</span>
+                        </div>
+                        <div class="dropdown-menu-divider"></div>
+                        <div class="dropdown-menu-item" onclick="zoomIn()">
+                            <span>Zoom In</span>
+                            <span class="menu-shortcut">Ctrl+=</span>
+                        </div>
+                        <div class="dropdown-menu-item" onclick="zoomOut()">
+                            <span>Zoom Out</span>
+                            <span class="menu-shortcut">Ctrl+-</span>
+                        </div>
+                        <div class="dropdown-menu-item" onclick="resetZoom()">
+                            <span>Reset Zoom</span>
+                            <span class="menu-shortcut">Ctrl+0</span>
+                        </div>
+                        <div class="dropdown-menu-divider"></div>
+                        <div class="dropdown-menu-item" onclick="toggleDemoMode()">
+                            <span id="menu-demo-mode-label">Demo Mode (Clean Screenshots)</span>
+                            <span class="menu-shortcut">Ctrl+Shift+D</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Autocomplete Status & Toggle -->
+                <div class="menu-item-trigger autocomplete-toggle on" id="btn-toggle-autocomplete" onclick="toggleAutocomplete()" title="Toggle AI Inline Code Completion (FIM)">
+                    <span class="autocomplete-radio-dot" id="autocomplete-radio-dot">●</span>
+                    <span>Autocomplete: <strong id="autocomplete-status-text">ON</strong></span>
+                </div>
+            </nav>
+        </div>
+
+        <div class="nav-center">
+            <div class="search-input-group">
+                <span class="search-icon-prefix">🔍</span>
+                <input type="text" id="nav-search-input" class="search-input" placeholder="Search remote files in workspace..." autocomplete="off">
+            </div>
+        </div>
+
+        <div class="nav-right">
+            <div class="spark-host-indicator" onclick="openSettingsModal()" style="cursor: pointer;" title="Click to configure Host & Model connection">
+                <span class="status-dot" id="nav-status-dot"></span>
+                <span>HOST:</span>
+                <span id="nav-host-display" style="color: #ffffff; font-weight: 700;">--</span>
+                <span id="nav-host-status" style="font-weight: 700;">ONLINE</span>
+            </div>
+        </div>
+    </header>
+
+    <!-- 2. Main Three-Column Workspace -->
+    <main class="spark-main">
+        
+        <!-- Left Column: Remote File Browser -->
+        <aside class="column-left" id="panel-explorer">
+            <div class="panel-header-standard">
+                <span>File Explorer</span>
+                <div class="panel-actions">
+                    <button class="btn-icon-panel" id="btn-toggle-hidden-files" onclick="toggleHiddenFiles()" title="Private / Dot Folders Hidden (Click to Unlock / Show)">🔒</button>
+                    <button class="btn-icon-panel" onclick="startInlineCreation(false)" title="New File in Selected Folder">+ File</button>
+                    <button class="btn-icon-panel" onclick="startInlineCreation(true)" title="New Folder in Selected Folder">+ Folder</button>
+                    <button class="btn-icon-panel" onclick="refreshExplorerTree()" title="Refresh Tree">↻</button>
+                </div>
+            </div>
+            <div class="explorer-path-bar" id="current-path-display">~</div>
+            <div class="file-tree-container" id="file-tree-container" tabindex="0">
+                <div style="padding: 10px; color: #6a737d; font-size: 11px;">Connecting to SFTP...</div>
+            </div>
+        </aside>
+
+        <!-- Left Column Resizer -->
+        <div class="gutter-resizer" id="resizer-left" title="Drag to resize File Explorer"></div>
+
+        <!-- Center Column: Code Editor with Tabs & AI Complete -->
+        <section class="column-center">
+            <!-- Tabs Strip -->
+            <div class="tab-bar" id="tab-strip"></div>
+            <!-- Monaco Editor Container -->
+            <div class="editor-workspace">
+                <div id="monaco-editor"></div>
+            </div>
+            <!-- Editor Status Toolbar -->
+            <div class="editor-toolbar">
+                <div>
+                    <span id="editor-status-text">Ready</span>
+                    <span style="margin: 0 8px; color: #d1d5da;">|</span>
+                    <span>AI Inline Complete: <strong>ACTIVE</strong> (Qwen FIM)</span>
+                </div>
+                <div>
+                    <span style="color: #858585; font-size: 11px;">[Tab] Accept Ghost Text · [Alt+\] Complete · [Ctrl+S] Save</span>
+                </div>
+            </div>
+        </section>
+
+        <!-- Right Column Resizer -->
+        <div class="gutter-resizer" id="resizer-right" title="Drag to resize Agent Chat"></div>
+
+        <!-- Right Column: Agent Chat (Full Agentic Coding Loop) -->
+        <aside class="column-right" id="panel-agent">
+            <div class="panel-header-standard">
+                <div style="display: flex; align-items: center; gap: 6px;">
+                    <span>Chat with Agent</span>
+                    <span class="chat-thinking-badge" id="chat-thinking-badge" style="display: none;">
+                        <span class="spinner-ring small"></span> Thinking...
+                    </span>
+                </div>
+                <span style="font-size: 10px; font-weight: normal; color: #6a737d;">Local Hardware Only</span>
+            </div>
+            
+            <!-- Model Picker Bar -->
+            <div class="model-picker-bar">
+                <label for="model-select" style="font-weight: 600; color: #444444;">Model:</label>
+                <select id="model-select" class="model-select">
+                    <option value="qwen2.5-coder:14b">qwen2.5-coder:14b</option>
+                    <option value="qwen2.5-coder:7b">qwen2.5-coder:7b</option>
+                </select>
+            </div>
+
+            <!-- Agent History -->
+            <div class="agent-chat-history" id="agent-history">
+                <div class="chat-message assistant">
+                    <div class="chat-header">
+                        <span>Lucubrate Agent</span>
+                        <span style="font-size:10px; color:#959da5">SYSTEM</span>
+                    </div>
+                    <div class="chat-body">
+                        Connected to local model runtime and remote execution host.<br>
+                        Ready for autonomous software engineering, file inspections, and remote execution.
+                    </div>
+                </div>
+            </div>
+
+            <!-- Agent Input Box -->
+            <div class="agent-input-container" id="agent-input-container">
+                <div class="agent-context-chips" id="agent-context-chips"></div>
+                <textarea id="agent-input" class="agent-textarea" placeholder="Instruct agent or drag files/folders here (e.g. 'inspect train.py', 'refactor MoE routing')..."></textarea>
+                <div class="agent-actions-row">
+                    <span style="font-size: 10px; color: #6a737d;">Enter to send · Shift+Enter for newline</span>
+                    <button id="btn-send-agent" class="toolbar-btn btn-primary" style="margin-right: 0;">Send Instruction</button>
+                </div>
+            </div>
+        </aside>
+
+    </main>
+
+    <!-- 3. Bottom CLI: Remote Interactive Shell (Multi-Tab xterm.js) -->
+    <div class="terminal-drawer" id="terminal-drawer">
+        <div class="terminal-resizer" id="terminal-resizer" title="Drag up or down to resize CLI terminal"></div>
+        <div class="terminal-header" id="terminal-header-bar">
+            <!-- Left: Terminal Tabs & New Tab Button -->
+            <div class="terminal-header-left">
+                <span class="terminal-title-label">TERMINAL</span>
+                <div class="terminal-tabs-bar" id="terminal-tabs-bar"></div>
+                <button class="btn-new-terminal" onclick="createNewTerminalTab()" title="Open New Terminal (SSH PTY)">+ New</button>
+            </div>
+
+            <!-- Right: Host & Collapse trigger -->
+            <div class="terminal-header-right">
+                <span style="font-size: 11px; color: #888888;"><span id="term-user-host">Terminal</span> (SSH PTY)</span>
+                <span class="btn-toggle-terminal-chevron" id="btn-toggle-terminal" title="Click to Collapse/Expand">▼</span>
+            </div>
+        </div>
+        <div class="terminal-container" id="terminal-container"></div>
+    </div>
+
+    <!-- 4. Very Bottom Footer Line: Live Hardware Telemetry -->
+    <footer class="spark-footer">
+        <div class="footer-section">
+            <div class="footer-item">
+                <span>HOST:</span>
+                <span class="footer-val" id="metric-ip">--</span>
+            </div>
+            <div class="footer-item">
+                <span>GPU TEMP:</span>
+                <span class="footer-val metric-good" id="metric-temp">--°C</span>
+            </div>
+            <div class="footer-item">
+                <span>UNIFIED MEMORY:</span>
+                <span class="footer-val" id="metric-vram">-- MB</span>
+                <span>/</span>
+                <span class="footer-val" id="metric-total-vram">124,546 MB</span>
+            </div>
+            <div class="footer-item">
+                <span>PWR:</span>
+                <span class="footer-val" id="metric-power">-- W</span>
+            </div>
+        </div>
+        <div class="footer-section">
+            <div class="footer-item">
+                <span>ACTIVE MODEL:</span>
+                <span class="footer-val" id="metric-model">qwen2.5-coder:14b</span>
+            </div>
+            <div class="footer-item">
+                <span>LATENCY:</span>
+                <span class="footer-val metric-good" id="metric-latency">&lt;1ms</span>
+            </div>
+        </div>
+    </footer>
+
+    <!-- 5. Settings / Connection Modal -->
+    <div class="modal-backdrop" id="settings-modal-backdrop" style="display: none;">
+        <div class="settings-modal-panel">
+            <div class="panel-header-standard" style="background-color: #24292e; color: #ffffff;">
+                <span>Remote Host & Local LLM Settings</span>
+                <button class="btn-icon-panel" onclick="closeSettingsModal()" style="color: #ffffff; background: transparent; border: none; font-size: 14px;">✕</button>
+            </div>
+            <div class="settings-modal-body">
+                <p style="font-size: 11px; color: #586069; margin-bottom: 12px;">
+                    Configure your remote host IP address, SSH authentication, and local model server endpoints. Changes are saved locally to <code>config.json</code>.
+                </p>
+
+                <div class="form-group-setting">
+                    <label>Host IP / Domain:</label>
+                    <input type="text" id="setting-host" class="input-setting" placeholder="192.168.1.100">
+                </div>
+
+                <div class="form-group-setting">
+                    <label>SSH Username:</label>
+                    <input type="text" id="setting-user" class="input-setting" placeholder="username">
+                </div>
+
+                <div class="form-group-setting">
+                    <label>SSH Port:</label>
+                    <input type="number" id="setting-port" class="input-setting" placeholder="22" style="width: 100px;">
+                </div>
+
+                <div class="form-group-setting">
+                    <label>SSH Private Key Path:</label>
+                    <input type="text" id="setting-key" class="input-setting" placeholder="/path/to/private_key">
+                </div>
+
+                <div class="form-group-setting">
+                    <label>Model Server URL (Ollama / vLLM):</label>
+                    <input type="text" id="setting-model-url" class="input-setting" placeholder="http://192.168.1.100:8000/v1">
+                </div>
+
+                <div class="form-group-setting">
+                    <label>Default Remote Directory:</label>
+                    <input type="text" id="setting-root" class="input-setting" placeholder="/home/username">
+                </div>
+
+                <div id="setting-test-result" style="margin-top: 8px; font-size: 11px; font-family: monospace;"></div>
+            </div>
+            <div class="settings-modal-footer">
+                <button class="toolbar-btn" onclick="testConnectionFromSettings()">Test Connection</button>
+                <div style="display: flex; gap: 6px;">
+                    <button class="toolbar-btn" onclick="closeSettingsModal()">Cancel</button>
+                    <button class="toolbar-btn btn-primary" onclick="saveSettings()">Save &amp; Connect</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Context Menu for File Explorer (VS Code Style) -->
+    <div id="explorer-context-menu" class="vsc-context-menu" style="display: none;">
+        <div class="context-menu-item" onclick="handleContextMenuAction('new-file')">
+            <span>New File</span>
+        </div>
+        <div class="context-menu-item" onclick="handleContextMenuAction('new-folder')">
+            <span>New Folder</span>
+        </div>
+        <div class="context-menu-separator"></div>
+        <div class="context-menu-item" id="ctx-open-file" onclick="handleContextMenuAction('open-file')">
+            <span>Open</span>
+        </div>
+        <div class="context-menu-item" onclick="handleContextMenuAction('open-terminal')">
+            <span>Open in Integrated Terminal</span>
+        </div>
+        <div class="context-menu-separator"></div>
+        <div class="context-menu-item" onclick="handleContextMenuAction('copy-path')">
+            <span>Copy Path</span>
+            <span class="context-menu-shortcut">Shift+Alt+C</span>
+        </div>
+        <div class="context-menu-item" onclick="handleContextMenuAction('copy-relative-path')">
+            <span>Copy Relative Path</span>
+        </div>
+        <div class="context-menu-separator"></div>
+        <div class="context-menu-item" id="ctx-rename" onclick="handleContextMenuAction('rename')">
+            <span>Rename...</span>
+            <span class="context-menu-shortcut">F2</span>
+        </div>
+        <div class="context-menu-item danger" id="ctx-delete" onclick="handleContextMenuAction('delete')">
+            <span>Delete</span>
+            <span class="context-menu-shortcut">Del</span>
+        </div>
+    </div>
+
+    <script src="/static/js/app.js?v=16"></script>
+</body>
+</html>

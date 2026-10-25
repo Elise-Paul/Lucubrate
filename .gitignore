@@ -1,0 +1,14 @@
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+env/
+venv/
+*.log
+
+# Local personal cluster configuration
+config.json
+
+# PyInstaller build outputs
+build/
+dist/

@@ -1,0 +1,8 @@
+{
+  "remote_host": "192.168.1.100",
+  "remote_user": "username",
+  "remote_key_path": "/path/to/private_key",
+  "remote_port": 22,
+  "model_url": "http://192.168.1.100:8000/v1",
+  "remote_root": "/home/username"
+}
