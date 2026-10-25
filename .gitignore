@@ -6,8 +6,13 @@ env/
 venv/
 *.log
 
-# Local personal cluster configuration
+# Local personal cluster configuration & secrets
 config.json
+.env
+.env.*
+*.pem
+*.key
+id_*
 
 # PyInstaller build outputs
 build/

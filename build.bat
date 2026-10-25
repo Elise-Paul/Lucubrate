@@ -8,7 +8,7 @@ echo =======================================================
 
 echo [1/4] Closing any running Lucubrate instances...
 taskkill /F /T /IM Lucubrate.exe >nul 2>&1
-python -c "import psutil, time; [p.kill() for p in psutil.process_iter() if p.name().lower() in ('lucubrate.exe', 'sparkcode.exe')]; time.sleep(1)" >nul 2>&1
+python -c "import psutil, time; [p.kill() for p in psutil.process_iter() if p.name().lower() in ('lucubrate.exe')]; time.sleep(1)" >nul 2>&1
 
 echo [2/4] Compiling Lucubrate.exe via PyInstaller spec...
 python -m PyInstaller --noconfirm Lucubrate.spec
