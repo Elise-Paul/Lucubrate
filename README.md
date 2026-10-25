@@ -4,6 +4,9 @@
 
 A minimalist, high-throughput systems IDE designed for pairing with local LLMs (vLLM / Ollama) and remote GPU/Linux environments over SSH and SFTP.
 
+> [!WARNING]
+> **Early Alpha / Active Development**: Lucubrate is in an early preview stage and undergoing rapid iteration. You may encounter bugs, rough edges, or missing features. Feedback, issue reports, and pull requests are welcome.
+
 ![Lucubrate IDE](screenshot.png)
 
 ---
